@@ -10,6 +10,7 @@ import { Footer } from '@/components/footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useCPUStore } from '@/lib/store';
 import { 
   Cpu, 
   Thermometer, 
@@ -44,18 +45,22 @@ const generateIndividualCPUData = () => {
 };
 
 export default function CPUMonitoringPage() {
-  const [cpuData, setCpuData] = useState<any[]>([]);
-  const [metrics, setMetrics] = useState({
-    totalCPUs: 5, // Fixed value as requested
-    avgTemp: 0,
-    maxTemp: 0,
-    dataSource: 'Mock Data'
-  });
-  const [isConnected, setIsConnected] = useState(false);
+  const {
+    cpuData,
+    metrics,
+    uploadedCsvContent,
+    isConnected,
+    autoRefresh,
+    lastUpdate,
+    setCpuData,
+    setMetrics,
+    setUploadedCsvContent,
+    setIsConnected,
+    setAutoRefresh,
+    setLastUpdate
+  } = useCPUStore();
+
   const [isProcessing, setIsProcessing] = useState(false);
-  const [uploadedCsvContent, setUploadedCsvContent] = useState<string | null>(null);
-  const [autoRefresh, setAutoRefresh] = useState(false);
-  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
   // AIDA64 CSV Parser Function
   const processAidaData = (csvContent: string) => {
@@ -148,7 +153,7 @@ export default function CPUMonitoringPage() {
       const avgTemp = Math.round((totalTemp / allTemperatureData.length) * 10) / 10;
       const maxTemp = Math.round(Math.max(...allTemperatureData) * 10) / 10;
 
-      // Update state
+      // Update global state
       setCpuData(processedCpuData);
       setMetrics({
         totalCPUs: 5, // Fixed value as requested
@@ -290,21 +295,23 @@ Date,Time,UpTime,CPU,CPU Package,CPU IA Cores,CPU GT Cores,HDD1
   };
 
   useEffect(() => {
-    // Initialize with mock data only
-    const initialData = generateIndividualCPUData();
-    setCpuData(initialData);
-    
-    const tempValues = initialData.map(cpu => cpu.temperature);
-    const avgTemp = tempValues.reduce((sum, t) => sum + t, 0) / tempValues.length;
-    const maxTemp = Math.max(...tempValues);
-    
-    setMetrics({
-      totalCPUs: 5,
-      avgTemp: Math.round(avgTemp * 10) / 10,
-      maxTemp: Math.round(maxTemp * 10) / 10,
-      dataSource: 'Mock Data'
-    });
-  }, []);
+    // Initialize with existing data or mock data
+    if (cpuData.length === 0) {
+      const initialData = generateIndividualCPUData();
+      setCpuData(initialData);
+      
+      const tempValues = initialData.map(cpu => cpu.temperature);
+      const avgTemp = tempValues.reduce((sum, t) => sum + t, 0) / tempValues.length;
+      const maxTemp = Math.max(...tempValues);
+      
+      setMetrics({
+        totalCPUs: 5,
+        avgTemp: Math.round(avgTemp * 10) / 10,
+        maxTemp: Math.round(maxTemp * 10) / 10,
+        dataSource: 'Mock Data'
+      });
+    }
+  }, [cpuData.length, setCpuData, setMetrics]);
 
   // Auto-refresh effect
   useEffect(() => {
@@ -362,7 +369,7 @@ Date,Time,UpTime,CPU,CPU Package,CPU IA Cores,CPU GT Cores,HDD1
                     Auto-Refresh Active
                   </Badge>
                 )}
-                {uploadedCsvContent && (
+                {uploadedCsvContent && lastUpdate && (
                   <span className="text-sm text-muted-foreground">
                     Last Update: {formatTime(lastUpdate)}
                   </span>

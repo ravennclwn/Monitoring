@@ -8,6 +8,7 @@ import { TemperatureChart } from '@/components/temperature-chart';
 import { TemperatureScale } from '@/components/temperature-scale';
 import { CPUMonitoringTable } from '@/components/cpu-monitoring-table';
 import { Footer } from '@/components/footer';
+import { useCPUStore } from '@/lib/store';
 import { 
   Cpu, 
   Thermometer, 
@@ -16,21 +17,42 @@ import {
 } from 'lucide-react';
 
 export default function HomePage() {
-  const [metrics, setMetrics] = useState({
-    cpuCount: 7,
+  const { 
+    cpuData, 
+    metrics, 
+    isConnected,
+    getMaxCpuTemp, 
+    getCpuCount, 
+    getHighestTempCpuName 
+  } = useCPUStore();
+
+  const [dashboardMetrics, setDashboardMetrics] = useState({
+    cpuCount: 5,
     roomTemp: 24.5,
     totalComputers: 1,
     maxCpuTemp: 78.2,
+    maxCpuName: 'CPU-01'
   });
 
-  // Simulate real-time data updates
+  // Update dashboard metrics based on CPU store data
+  useEffect(() => {
+    const maxTemp = getMaxCpuTemp();
+    const cpuName = getHighestTempCpuName();
+    
+    setDashboardMetrics(prev => ({
+      ...prev,
+      cpuCount: getCpuCount(),
+      maxCpuTemp: maxTemp > 0 ? maxTemp : prev.maxCpuTemp,
+      maxCpuName: cpuName
+    }));
+  }, [cpuData, getMaxCpuTemp, getCpuCount, getHighestTempCpuName]);
+
+  // Simulate room temperature updates
   useEffect(() => {
     const interval = setInterval(() => {
-      setMetrics(prev => ({
-        cpuCount: prev.cpuCount,
+      setDashboardMetrics(prev => ({
+        ...prev,
         roomTemp: 24.5 + (Math.random() - 0.5) * 2, // Room temp with slight variation
-        totalComputers: prev.totalComputers,
-        maxCpuTemp: 75 + Math.random() * 10, // CPU temp between 75-85°C
       }));
     }, 5000);
 
@@ -52,14 +74,19 @@ export default function HomePage() {
               <p className="text-muted-foreground mt-2">
                 Real-time monitoring dashboard for CPU temperature and room environment
               </p>
+              {isConnected && (
+                <p className="text-sm text-green-600 mt-1">
+                  ✓ Connected to AIDA64 CSV data from CPU Monitoring page
+                </p>
+              )}
             </div>
 
             {/* Metrics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <MetricCard
                 title="CPU yang Dimonitor"
-                value={metrics.cpuCount}
-                status="PRTG"
+                value={dashboardMetrics.cpuCount}
+                status={isConnected ? "AIDA64" : "PRTG"}
                 statusColor="blue"
                 icon={Cpu}
                 iconColor="blue"
@@ -67,7 +94,7 @@ export default function HomePage() {
               
               <MetricCard
                 title="Suhu Ruangan Lab"
-                value={`${metrics.roomTemp.toFixed(1)}°C`}
+                value={`${dashboardMetrics.roomTemp.toFixed(1)}°C`}
                 status="Normal"
                 statusColor="orange"
                 icon={Thermometer}
@@ -76,7 +103,7 @@ export default function HomePage() {
               
               <MetricCard
                 title="Total Komputer"
-                value={metrics.totalComputers}
+                value={dashboardMetrics.totalComputers}
                 status="Aktif"
                 statusColor="green"
                 icon={Monitor}
@@ -85,8 +112,8 @@ export default function HomePage() {
               
               <MetricCard
                 title="Suhu Tertinggi CPU"
-                value={`${metrics.maxCpuTemp.toFixed(1)}°C`}
-                status="CPU-03"
+                value={`${dashboardMetrics.maxCpuTemp.toFixed(1)}°C`}
+                status={dashboardMetrics.maxCpuName}
                 statusColor="red"
                 icon={AlertTriangle}
                 iconColor="red"
@@ -95,13 +122,13 @@ export default function HomePage() {
 
             {/* Charts and Tables */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-              <TemperatureChart />
+              <TemperatureChart cpuData={cpuData} />
               <TemperatureScale />
             </div>
 
             {/* CPU Monitoring Table */}
             <div className="grid grid-cols-1 gap-6">
-              <CPUMonitoringTable />
+              <CPUMonitoringTable cpuData={cpuData} />
             </div>
 
             {/* Footer */}

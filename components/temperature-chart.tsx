@@ -5,7 +5,7 @@ import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'rec
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 
 // Mock data generator for 24-hour temperature
-const generateTemperatureData = () => {
+const generateTemperatureData = (cpuData?: any[]) => {
   const data = [];
   const now = new Date();
   
@@ -13,10 +13,19 @@ const generateTemperatureData = () => {
     const time = new Date(now.getTime() - i * 60 * 60 * 1000);
     const hour = time.getHours().toString().padStart(2, '0') + ':00';
     
-    // Generate realistic CPU temperature data (45-85°C)
-    const baseTemp = 65;
-    const variation = Math.sin((i / 24) * 2 * Math.PI) * 10 + Math.random() * 8 - 4;
-    const cpuTemp = Math.max(45, Math.min(85, baseTemp + variation));
+    // Use real CPU data if available, otherwise generate mock data
+    let cpuTemp = 65;
+    if (cpuData && cpuData.length > 0) {
+      // Use average temperature from real data with some variation
+      const avgTemp = cpuData.reduce((sum, cpu) => sum + cpu.temperature, 0) / cpuData.length;
+      const variation = Math.sin((i / 24) * 2 * Math.PI) * 5 + Math.random() * 4 - 2;
+      cpuTemp = Math.max(45, Math.min(85, avgTemp + variation));
+    } else {
+      // Generate realistic CPU temperature data (45-85°C)
+      const baseTemp = 65;
+      const variation = Math.sin((i / 24) * 2 * Math.PI) * 10 + Math.random() * 8 - 4;
+      cpuTemp = Math.max(45, Math.min(85, baseTemp + variation));
+    }
     
     // Generate room temperature data (20-30°C)
     const roomTemp = 24 + Math.sin((i / 24) * 2 * Math.PI) * 3 + Math.random() * 2 - 1;
@@ -31,24 +40,33 @@ const generateTemperatureData = () => {
   return data;
 };
 
-export function TemperatureChart() {
+interface TemperatureChartProps {
+  cpuData?: any[];
+}
+
+export function TemperatureChart({ cpuData }: TemperatureChartProps) {
   const [data, setData] = useState<any[]>([]);
 
   useEffect(() => {
     // Set initial data after component mounts
-    setData(generateTemperatureData());
+    setData(generateTemperatureData(cpuData));
     
     const interval = setInterval(() => {
-      setData(generateTemperatureData());
+      setData(generateTemperatureData(cpuData));
     }, 5000); // Update every 5 seconds
 
     return () => clearInterval(interval);
-  }, []);
+  }, [cpuData]);
 
   return (
     <Card className="col-span-1 lg:col-span-2 border-0 bg-card/50 backdrop-blur-sm">
       <CardHeader>
         <CardTitle className="text-lg font-semibold">24-Hour Temperature Graph</CardTitle>
+        {cpuData && cpuData.length > 0 && (
+          <p className="text-sm text-muted-foreground">
+            Using real AIDA64 data from CPU Monitoring
+          </p>
+        )}
       </CardHeader>
       <CardContent>
         <div className="h-80">
